@@ -5,7 +5,7 @@ Look at the examples for more understanding of the library.
 
 # Build async function
 
-Functions that will be used by the `async` function need to handle a special parameter (for better compatibility instead of using fenv), this parameter is a callback that need to be called to return the function values.
+Functions that will be used by the `async` function need to handle a special parameter (for better compatibility instead of using fenv), this parameter is a callback that needs to be called to return the function values.
 
 For example, if we have an asynchronous process, like fetching a webpage content:
 
@@ -40,3 +40,7 @@ end)
 Luaseq.async(func, ...)
 end
 ```
+
+# Versions
+
+It is designed to works with luajit (Lua 5.1), but the code should be easy to adapt to other Lua versions.
