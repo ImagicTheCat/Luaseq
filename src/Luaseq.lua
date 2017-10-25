@@ -3,56 +3,6 @@ local Luaseq = {}
 
 local unpack = table.unpack or unpack
 
-function Luaseq.await(func, ...)
-  local co = coroutine.running()
-  if co then -- in coroutine
-    local ret = nil
-    local params = {...}
-    local function return_async(...)
-      if not ret then -- prevents double or more calls
-        ret = {...}
-
-        --[[
-        local log = tostring(co)..":"..tostring(func)
-        for k,v in pairs(params) do
-          log = log.." "..tostring(v)
-        end
-        log = log.." => "
-        for k,v in pairs(ret) do
-          log = log.." "..tostring(v)
-        end
-        print(log)
-        --]]
-
-        if coroutine.running() ~= co then
-          local ok, err = coroutine.resume(co, ...)
-          if not ok then
-            print(err)
-          end
-        end
-      end
-    end
-
-    func(return_async, ...)
-
-    if ret then -- sync
-      return unpack(ret)
-    else -- async
-      return coroutine.yield()
-    end
-  else -- not in a coroutine, create coroutine
-    co = coroutine.create(function(func, ...)
-      Luaseq.async(func, ...)
-    end)
-    local ok, err = coroutine.resume(co, func, ...)
-    if not ok then
-      print(err)
-    end
-  end
-end
-
--- new style
-
 local function wait(self)
   local r = self.r
   if r then
@@ -64,14 +14,26 @@ end
 
 local function areturn(self, ...)
   self.r = {...} -- set return values on the table (in case where the return is triggered immediatly)
-  coroutine.resume(self.co, ...)
+  local co = self.co
+  if coroutine.running() ~= co then
+    local ok, err = coroutine.resume(co, ...)
+    if not ok then
+      print(err)
+    end
+  end
 end
 
-function Luaseq.async(func)
+-- create an async context if a function is passed (execute the function in a coroutine if none exists)
+-- force: if passed/true, will create a coroutine even if already inside one
+--
+-- without arguments, an async returner is created and returned
+-- returner(...): call to pass return values
+-- returner:wait(): call to wait for the return values
+function Luaseq.async(func, force)
   local co = coroutine.running()
 
   if func then -- block use mode
-    if not co then -- exec in coroutine
+    if not co or force then -- exec in coroutine
       co = coroutine.create(func)
       local ok, err = coroutine.resume(co)
       if not ok then
@@ -81,7 +43,11 @@ function Luaseq.async(func)
       func()
     end
   else -- in definition mode
-    return setmetatable({ wait = wait, co = co }, { __call = areturn })
+    if co then
+      return setmetatable({ wait = wait, co = co }, { __call = areturn })
+    else
+      error("async call outside a coroutine")
+    end
   end
 end
 
