@@ -1,4 +1,4 @@
--- this example use lua-ev (luarocks)
+-- this example use lua-ev (see luarocks)
 
 -- add package path for the example
 package.path = package.path..";../src/?.lua;"
@@ -78,6 +78,6 @@ async(function()
   print("mult = "..async_mult(7, 10))
 
   print("end3")
-end)
+end, true)
 
 ev.Loop.default:loop()
