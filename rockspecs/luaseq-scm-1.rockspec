@@ -19,6 +19,6 @@ dependencies = {
 build = {
   type = "builtin",
   modules = {
-    Luaoop = "src/Luaseq.lua"
+    Luaseq = "src/Luaseq.lua"
   }
 }
