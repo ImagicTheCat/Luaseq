@@ -3,7 +3,7 @@ local Luaseq = {}
 
 local unpack = table.unpack or unpack
 
-function Luaseq.async(func, ...)
+function Luaseq.await(func, ...)
   local co = coroutine.running()
   if co then -- in coroutine
     local ret = nil
@@ -48,6 +48,40 @@ function Luaseq.async(func, ...)
     if not ok then
       print(err)
     end
+  end
+end
+
+-- new style
+
+local function wait(self)
+  local r = self.r
+  if r then
+    return unpack(r) -- indirect immediate return
+  else
+    return coroutine.yield() -- indirect coroutine return
+  end
+end
+
+local function areturn(self, ...)
+  self.r = {...} -- set return values on the table (in case where the return is triggered immediatly)
+  coroutine.resume(self.co, ...)
+end
+
+function Luaseq.async(func)
+  local co = coroutine.running()
+
+  if func then -- block use mode
+    if not co then -- exec in coroutine
+      co = coroutine.create(func)
+      local ok, err = coroutine.resume(co)
+      if not ok then
+        print(err)
+      end
+    else -- exec 
+      func()
+    end
+  else -- in definition mode
+    return setmetatable({ wait = wait, co = co }, { __call = areturn })
   end
 end
 
