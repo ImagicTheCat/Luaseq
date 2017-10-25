@@ -1,7 +1,7 @@
 -- this example use lua-ev (see luarocks)
 
 -- add package path for the example
-package.path = package.path..";../src/?.lua;"
+package.path = ";../src/?.lua;"..package.path
 
 -- lib
 local ev = require("ev")

@@ -1,11 +1,36 @@
+# Luaseq
 
 Luaseq is a small library to make async calls in a sync way using coroutines.
 
 Look at the examples for more understanding of the library.
 
-# Build async function
+## Install
 
-For example, if we have an asynchronous process, like fetching a webpage content:
+Instead of adding the file manually, you can use luarocks:
+
+`luarocks install https://raw.githubusercontent.com/ImagicTheCat/Luaseq/master/rockspecs/luaoop-scm-1.rockspec`
+
+Replace the rockspec with the one you want.
+
+## Version
+
+It is designed to work with luajit (Lua 5.1), but the code should work on latest versions.
+
+## API
+
+```lua
+-- create an async context if a function is passed (execute the function in a coroutine if none exists)
+-- force: if passed/true, will create a coroutine even if already inside one
+--
+-- without arguments, an async returner is created and returned
+-- returner(...): call to pass return values
+-- returner:wait(): call to wait for the return values
+Luaseq.async(func, force)
+```
+
+## Example
+
+If we have an asynchronous process, like fetching a webpage content:
 
 ```lua
 local Luaseq = require("Luaseq")
@@ -32,18 +57,4 @@ async(function()
 end)
 ```
 
-```lua
--- API
 
--- create an async context if a function is passed (execute the function in a coroutine if none exists)
--- force: if passed/true, will create a coroutine even if already inside one
---
--- without arguments, an async returner is created and returned
--- returner(...): call to pass return values
--- returner:wait(): call to wait for the return values
-Luaseq.async(func, force)
-```
-
-# Versions
-
-It is designed to works with luajit (Lua 5.1), but the code should work on latest versions.
