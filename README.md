@@ -8,7 +8,7 @@ Look at the examples for more understanding of the library.
 
 Instead of adding the file manually, you can use luarocks:
 
-`luarocks install https://raw.githubusercontent.com/ImagicTheCat/Luaseq/master/rockspecs/luaoop-scm-1.rockspec`
+`luarocks install https://raw.githubusercontent.com/ImagicTheCat/Luaseq/master/rockspecs/luaseq-scm-1.rockspec`
 
 Replace the rockspec with the one you want.
 
