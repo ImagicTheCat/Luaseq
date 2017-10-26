@@ -18,7 +18,7 @@ local function areturn(self, ...)
   if coroutine.running() ~= co then
     local ok, err = coroutine.resume(co, ...)
     if not ok then
-      print(err)
+      print(debug.traceback(co, err))
     end
   end
 end
@@ -37,7 +37,7 @@ function Luaseq.async(func, force)
       co = coroutine.create(func)
       local ok, err = coroutine.resume(co)
       if not ok then
-        print(err)
+        print(debug.traceback(co, err))
       end
     else -- exec 
       func()
