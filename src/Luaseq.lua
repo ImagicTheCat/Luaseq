@@ -12,12 +12,16 @@ local function wait(self)
   if r then
     return unpack(r) -- indirect immediate return
   else
+    self.waiting = true
     return yield() -- indirect coroutine return
   end
 end
 
 local function areturn(self, ...)
-  self.r = {...} -- set return values on the table (in case where the return is triggered immediatly)
+  if not self.waiting then
+    self.r = {...} -- set return values on the table (in case where the return is triggered immediatly)
+  end
+
   local co = self.co
   if running() ~= co then
     local ok, err = resume(co, ...)
@@ -35,7 +39,6 @@ end
 -- returner:wait(): call to wait for the return values
 function Luaseq.async(func, force)
   local co = running()
-
   if func then -- block use mode
     if not co or force then -- exec in coroutine
       co = create(func)
