@@ -36,6 +36,7 @@ function do_callback(n, func)
       func(n-1, do_callback)
     end)
   else
+    print(n)
     ev.Loop.default:unloop()
   end
 end
@@ -50,6 +51,7 @@ function do_async(n)
 
     do_async(r:wait())
   else
+    print(n)
     ev.Loop.default:unloop()
   end
 end

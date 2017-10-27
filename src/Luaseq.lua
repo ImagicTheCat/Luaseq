@@ -2,21 +2,25 @@
 local Luaseq = {}
 
 local unpack = table.unpack or unpack
+local running = coroutine.running
+local yield = coroutine.yield
+local create = coroutine.create
+local resume = coroutine.resume
 
 local function wait(self)
   local r = self.r
   if r then
     return unpack(r) -- indirect immediate return
   else
-    return coroutine.yield() -- indirect coroutine return
+    return yield() -- indirect coroutine return
   end
 end
 
 local function areturn(self, ...)
   self.r = {...} -- set return values on the table (in case where the return is triggered immediatly)
   local co = self.co
-  if coroutine.running() ~= co then
-    local ok, err = coroutine.resume(co, ...)
+  if running() ~= co then
+    local ok, err = resume(co, ...)
     if not ok then
       print(debug.traceback(co, err))
     end
@@ -30,12 +34,12 @@ end
 -- returner(...): call to pass return values
 -- returner:wait(): call to wait for the return values
 function Luaseq.async(func, force)
-  local co = coroutine.running()
+  local co = running()
 
   if func then -- block use mode
     if not co or force then -- exec in coroutine
-      co = coroutine.create(func)
-      local ok, err = coroutine.resume(co)
+      co = create(func)
+      local ok, err = resume(co)
       if not ok then
         print(debug.traceback(co, err))
       end
