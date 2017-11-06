@@ -37,7 +37,8 @@ local function areturn(self, ...)
   end
 
   local co = self.co
-  if running() ~= co then
+  if co and running() ~= co then
+    self.co = nil
     local ok, err = resume(co, ...)
     if not ok then
       print(debug.traceback(co, err))
