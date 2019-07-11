@@ -1,3 +1,4 @@
 = TODO
 
 * change `async` to always create coroutines unless the inverse flag of force is passed
+* take coroutine at `r:wait()` instead at `async()` ?
