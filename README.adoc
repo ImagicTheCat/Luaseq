@@ -1,3 +1,4 @@
+= Luaseq
 ifdef::env-github[]
 :tip-caption: :bulb:
 :note-caption: :information_source:
@@ -5,34 +6,36 @@ ifdef::env-github[]
 :caution-caption: :fire:
 :warning-caption: :warning:
 endif::[]
+:toc: left
+:toclevels: 5
 
-= Luaseq
+Luaseq is a simple Lua library with facilities to perform asynchronous tasks in a sequential way using coroutines.
 
-Luaseq is a small library to make async calls in a sync way using coroutines. +
-Look at the examples for more understanding of the library.
+See link:rockspecs[] and luarocks.
 
-== Install
+== Concept
 
-Instead of adding the file manually, you can use luarocks:
+A task can be created and then waited from multiple coroutines. This can be used to design complex asynchronous stuff.
 
-[source,bash]
-luarocks install https://raw.githubusercontent.com/ImagicTheCat/Luaseq/master/rockspecs/luaseq-scm-1.rockspec
-
-Replace the rockspec with the one you want.
-
-NOTE: It is designed to work with luajit (Lua 5.1), but the code should work on latest versions.
+NOTE: Coroutine resume errors are written on `stderr` prefixed by `async: ...`.
 
 == API
 
 [source,lua]
 ----
--- create an async context if a function is passed (execute the function in a coroutine if none exists)
--- force: if passed/true, will create a coroutine even if already inside one
---
--- without arguments, an async returner is created and returned
--- returner(...): call to pass return values
--- returner:wait(): call to wait for the return values
-Luaseq.async(func, force)
+-- no parameters: create a task
+--- return task
+-- parameters: execute function as coroutine (shortcut)
+--- f: function
+Luaseq.async(f)
+
+-- yield current coroutine (wait for task to return)
+-- return task return values
+task:wait()
+
+-- return/end task
+-- ...: return values
+task(...)
 ----
 
 .Basic usage
@@ -46,7 +49,7 @@ async = Luaseq.async
 
 -- create the async function
 function download(url)
-  local r = async() -- create "returner"
+  local r = async() -- create task
 
   http_request(url, function(content)
     r(content) -- return content
@@ -56,7 +59,7 @@ function download(url)
 end
 
 -- download 10 url sequentially
--- need to be inside a coroutine (like inside an async context)
+-- need to be inside a coroutine
 async(function()
   for i=1,10 do
     local content = download("http://foo.bar/"..i..".txt")
@@ -65,5 +68,3 @@ async(function()
 end)
 ----
 ====
-
-

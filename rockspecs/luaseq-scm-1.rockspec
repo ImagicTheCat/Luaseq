@@ -5,7 +5,7 @@ source = {
 }
 
 description = {
-  summary = "One file simple Lua library to manage async calls in a sync way using coroutines.",
+  summary = "One file Lua library with facilities to perform asynchronous tasks in a sequential way using coroutines.",
   detailed = [[
   ]],
   homepage = "https://github.com/ImagicTheCat/Luaseq",

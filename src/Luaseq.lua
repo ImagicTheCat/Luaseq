@@ -1,75 +1,64 @@
+-- https://github.com/ImagicTheCat/Luaseq
+-- MIT license (see LICENSE)
 
 local Luaseq = {}
 
-local unpack = table.unpack or unpack
-local maxn = table.maxn
+local select = select
+local error = error
+local setmetatable = setmetatable
+local table_unpack = table.unpack or unpack
+local table_insert = table.insert
+local coroutine_running = coroutine.running
+local coroutine_yield = coroutine.yield
+local coroutine_create = coroutine.create
+local coroutine_resume = coroutine.resume
+local debug_traceback = debug.traceback
+local stderr = io.stderr
 
-if not maxn then
-  maxn = function(t)
-    local max = 0
-    for k,v in pairs(t) do
-      local n = tonumber(k)
-      if n and n > max then max = n end
+-- Task
+
+-- yield current coroutine (wait for task to return)
+-- return task return values
+local function task_wait(self)
+  if self.r then return unpack(self.r,1,self.n) end -- already done, return values
+
+  local co = coroutine_running()
+  if not co then error("async wait outside a coroutine") end
+  table_insert(self, co)
+  return coroutine_yield(co) -- wait for the task to return
+end
+
+-- return/end task
+-- ...: return values
+local function task_return(self, ...)
+  if not self.r then
+    self.r, self.n = {...}, select("#", ...)
+
+    for _, co in ipairs(self) do
+      local ok, err = coroutine_resume(co, ...)
+      if not ok then stderr:write(debug_traceback(co, "async: "..err).."\n") end
     end
-
-    return max
   end
 end
 
-local running = coroutine.running
-local yield = coroutine.yield
-local create = coroutine.create
-local resume = coroutine.resume
+local meta_task = {
+  __index = {wait = task_wait},
+  __call = task_return
+}
 
-local function wait(self)
-  local r = self.r
-  if r then
-    return unpack(r, 1, maxn(r)) -- indirect immediate return
+-- Luaseq
+
+-- no parameters: create a task
+--- return task
+-- parameters: execute function as coroutine (shortcut)
+--- f: function
+function Luaseq.async(f)
+  if f then
+    local co = coroutine_create(f)
+    local ok, err = coroutine_resume(co)
+    if not ok then stderr:write(debug_traceback(co, "async: "..err).."\n") end
   else
-    self.waiting = true
-    return yield() -- indirect coroutine return
-  end
-end
-
-local function areturn(self, ...)
-  if not self.waiting then
-    self.r = {...} -- set return values on the table (in case where the return is triggered immediatly)
-  end
-
-  local co = self.co
-  if co and running() ~= co then
-    self.co = nil
-    local ok, err = resume(co, ...)
-    if not ok then
-      print(debug.traceback(co, err))
-    end
-  end
-end
-
--- create an async context if a function is passed (execute the function in a coroutine if none exists)
--- force: if passed/true, will create a coroutine even if already inside one
---
--- without arguments, an async returner is created and returned
--- returner(...): call to pass return values
--- returner:wait(): call to wait for the return values
-function Luaseq.async(func, force)
-  local co = running()
-  if func then -- block use mode
-    if not co or force then -- exec in coroutine
-      co = create(func)
-      local ok, err = resume(co)
-      if not ok then
-        print(debug.traceback(co, err))
-      end
-    else -- exec 
-      func()
-    end
-  else -- in definition mode
-    if co then
-      return setmetatable({ wait = wait, co = co }, { __call = areturn })
-    else
-      error("async call outside a coroutine")
-    end
+    return setmetatable({}, meta_task)
   end
 end
 
