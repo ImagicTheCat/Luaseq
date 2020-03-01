@@ -15,7 +15,7 @@ See link:rockspecs[] and luarocks.
 
 == Concept
 
-A task can be created and then waited from multiple coroutines. This can be used to design complex asynchronous stuff.
+A task can be created and then waited from multiple coroutines. This can be used to design complex asynchronous operations.
 
 NOTE: Coroutine resume errors are written on `stderr` prefixed by `async: ...`.
 
@@ -29,11 +29,13 @@ NOTE: Coroutine resume errors are written on `stderr` prefixed by `async: ...`.
 --- f: function
 Luaseq.async(f)
 
--- yield current coroutine (wait for task to return)
+-- wait for task to return
+-- (will yield the current coroutine if the task is not completed)
 -- return task return values
 task:wait()
 
--- return/end task
+-- return/complete/end task
+-- (multiple calls will do nothing)
 -- ...: return values
 task(...)
 ----
