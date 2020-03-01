@@ -11,7 +11,10 @@ endif::[]
 
 Luaseq is a simple Lua library with facilities to perform asynchronous tasks in a sequential way using coroutines.
 
-See link:rockspecs[] and luarocks.
+
+== Install
+
+See link:src[], link:rockspecs[] or https://luarocks.org/modules/imagicthecat-0a6b669a3a/luaseq[luarocks].
 
 == Concept
 
