@@ -45,24 +45,25 @@ local stderr = io.stderr
 --
 -- return task return values
 local function task_wait(self)
-  if self.r then return unpack(self.r,1,self.n) end -- already done, return values
-  local co = coroutine_running()
-  if not co then error("async wait outside a coroutine") end
+  if self.r then return table_unpack(self.r, 1, self.n) end -- already done, return values
+  local co, main = coroutine_running()
+  if not co or main then error("async wait outside a coroutine") end
   table_insert(self, co)
   return coroutine_yield(co) -- wait for the task to return
 end
 
--- Complete task. Subsequent calls will have no effect.
+-- Complete task (subsequent calls will throw an error).
+-- Waiting coroutines are resumed in the same order of wait() calls.
+--
 -- ...: task return values
 local function task_return(self, ...)
-  if not self.r then
-    self.r, self.n = {...}, select("#", ...)
-    for _, co in ipairs(self) do
-      local ok, err = coroutine_resume(co, ...)
-      if not ok then
-        stderr:write(debug_traceback(co, "async: "..err).."\n")
-        error("error resuming coroutine")
-      end
+  if self.r then error("task already completed") end
+  self.r, self.n = {...}, select("#", ...)
+  for _, co in ipairs(self) do
+    local ok, err = coroutine_resume(co, ...)
+    if not ok then
+      stderr:write(debug_traceback(co, "async: "..err).."\n")
+      error("error resuming coroutine")
     end
   end
 end
