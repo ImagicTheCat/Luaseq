@@ -1,19 +1,21 @@
 package = "Luaseq"
-version = "scm-1"
+version = "1.1-1"
 source = {
   url = "git://github.com/ImagicTheCat/Luaseq",
+  tag = "1.1"
 }
 
 description = {
-  summary = "One file Lua library with facilities to perform asynchronous tasks in a sequential way using coroutines.",
+  summary = "An asynchronous helper library built on Lua coroutines.",
   detailed = [[
+Luaseq is an asynchronous helper library built on coroutines. It can be used to perform asynchronous tasks in a "sequential" way.
   ]],
   homepage = "https://github.com/ImagicTheCat/Luaseq",
   license = "MIT"
 }
 
 dependencies = {
-  "lua >= 5.1, < 5.4"
+  "lua >= 5.1, <= 5.4"
 }
 
 build = {
