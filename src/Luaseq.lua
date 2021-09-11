@@ -77,10 +77,12 @@ local meta_task = {
 
 -- Async utility.
 --
--- no arguments: create a task
+-- No arguments: create a task.
 --- return task
 --
--- with arguments: execute function as a coroutine (directly resumed)
+-- With arguments: execute a function as a coroutine (directly resumed).
+-- Note: this does nothing special, any coroutine can be used with tasks.
+--
 --- f: function
 --- return created coroutine (thread)
 function Luaseq.async(f)

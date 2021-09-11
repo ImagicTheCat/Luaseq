@@ -9,8 +9,7 @@ endif::[]
 :toc: left
 :toclevels: 5
 
-Luaseq is a simple Lua library with facilities to perform asynchronous tasks in a sequential way using coroutines.
-
+Luaseq is an asynchronous helper library built on coroutines. It can be used to perform asynchronous tasks in a "sequential" way.
 
 == Install
 
@@ -18,7 +17,7 @@ See link:src[], link:rockspecs[] or https://luarocks.org/modules/imagicthecat-0a
 
 == Concept
 
-A task can be created and then waited from multiple coroutines. This can be used to design complex asynchronous operations.
+A task can be created and then waited for completion from multiple coroutines. This can be used to design complex asynchronous dependencies.
 
 NOTE: Coroutine resume errors are written on `stderr` prefixed by `async: ...`.
 
@@ -26,45 +25,57 @@ NOTE: Coroutine resume errors are written on `stderr` prefixed by `async: ...`.
 
 [source,lua]
 ----
--- no parameters: create a task
+-- Async utility.
+--
+-- No arguments: create a task.
 --- return task
--- parameters: execute function as coroutine (shortcut)
+--
+-- With arguments: execute a function as a coroutine (directly resumed).
+-- Note: this does nothing special, any coroutine can be used with tasks.
+--
 --- f: function
+--- return created coroutine (thread)
 Luaseq.async(f)
 
--- wait for task to return
--- (will yield the current coroutine if the task is not completed)
+-- Task
+
+-- Wait for task completion.
+-- Will yield the current coroutine if the task is not completed.
+--
 -- return task return values
 task:wait()
 
--- return/complete/end task
--- (multiple calls will do nothing)
--- ...: return values
+-- Complete task (subsequent calls will throw an error).
+-- Waiting coroutines are resumed in the same order of wait() calls.
+--
+-- ...: task return values
 task(...)
+
+-- A task is a table where the array part is the list of waiting coroutines.
+-- When completed, two fields are added:
+task.r -- list of return values
+task.n -- number of return values
 ----
 
 .Basic usage
 ====
-If we have an asynchronous process, like fetching a webpage content:
+If we have an asynchronous process, like fetching an URL:
 
 [source,lua]
 ----
 local Luaseq = require("Luaseq")
 async = Luaseq.async
 
--- create the async function
+-- Create the async download function.
 function download(url)
   local r = async() -- create task
-
-  http_request(url, function(content)
-    r(content) -- return content
+  http_request(url, function(content) -- useless outer callback for the sake of clarity
+    r(content) -- complete task, return content
   end)
-
   return r:wait() -- wait for the returned values
 end
 
--- download 10 url sequentially
--- need to be inside a coroutine
+-- Download 10 URLs sequentially (need to be inside a coroutine).
 async(function()
   for i=1,10 do
     local content = download("http://foo.bar/"..i..".txt")
