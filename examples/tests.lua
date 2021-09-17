@@ -11,7 +11,9 @@ do -- test multiple coroutines waiting on a task
   local sum = 0
   for i=1,3 do async(function() sum = t:wait()+sum end) end
   assert(sum == 0)
+  assert(not t:completed())
   t(2)
+  assert(t:completed())
   assert(sum == 6)
 end
 do -- test subsequent completions/waits

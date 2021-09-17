@@ -40,17 +40,23 @@ local stderr = io.stderr
 
 -- Task
 
+local task = {}
+
 -- Wait for task completion.
 -- Will yield the current coroutine if the task is not completed.
 --
 -- return task return values
-local function task_wait(self)
+function task:wait()
   if self.r then return table_unpack(self.r, 1, self.n) end -- already done, return values
   local co, main = coroutine_running()
   if not co or main then error("async wait outside a coroutine") end
   table_insert(self, co)
   return coroutine_yield(co) -- wait for the task to return
 end
+
+-- Check if task is completed.
+-- return boolean
+function task:completed() return self.r ~= nil end
 
 -- Complete task (subsequent calls will throw an error).
 -- Waiting coroutines are resumed in the same order of wait() calls.
@@ -69,7 +75,7 @@ local function task_return(self, ...)
 end
 
 local meta_task = {
-  __index = {wait = task_wait},
+  __index = task,
   __call = task_return
 }
 

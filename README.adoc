@@ -51,6 +51,10 @@ task:wait()
 -- ...: task return values
 task(...)
 
+-- Check if task is completed.
+-- return boolean
+task:completed()
+
 -- A task is a table where the array part is the list of waiting coroutines.
 -- When completed, two fields are added:
 task.r -- list of return values
