@@ -30,7 +30,7 @@ local Luaseq = {}
 local select, error, ipairs = select, error, ipairs
 local setmetatable = setmetatable
 local table_unpack = table.unpack or unpack
-local table_insert = table.insert
+local table_insert, table_remove = table.insert, table.remove
 local coroutine_running = coroutine.running
 local coroutine_yield = coroutine.yield
 local coroutine_create = coroutine.create
@@ -39,6 +39,7 @@ local debug_traceback = debug.traceback
 local stderr = io.stderr
 
 -- Task
+-- A task is a table where the array part is the list of waiting coroutines.
 
 local task = {}
 
@@ -51,10 +52,10 @@ function task:wait()
   local co, main = coroutine_running()
   if not co or main then error("async wait outside a coroutine") end
   table_insert(self, co)
-  return coroutine_yield(co) -- wait for the task to return
+  return coroutine_yield() -- wait for the task to return
 end
 
--- Check if task is completed.
+-- Check if the task is completed.
 -- return boolean
 function task:completed() return self.r ~= nil end
 
@@ -78,6 +79,59 @@ local meta_task = {
   __index = task,
   __call = task_return
 }
+
+-- Mutex
+-- A mutex is a table where the array part is the list of locking coroutines,
+-- the first being the active one followed by the waiting ones.
+
+local mutex = {}
+
+-- Lock mutex.
+function mutex:lock()
+  local co, main = coroutine_running()
+  if not co or main then error("mutex lock outside a coroutine") end
+  if self.locks > 0 then -- already locked
+    if self[1] == co then -- same thread
+      if not self.reentrant then error("mutex is not reentrant") end
+      self.locks = self.locks+1
+    else -- other thread, wait
+      table_insert(self, co)
+      coroutine_yield()
+    end
+  else -- first lock
+    self.locks = 1
+    table_insert(self, co)
+  end
+end
+
+-- Unlock mutex.
+-- Waiting coroutines are resumed in the same order of lock() calls.
+function mutex:unlock()
+  local co, main = coroutine_running()
+  if not co or main then error("mutex unlock outside a coroutine") end
+  if self.locks == 0 then error("mutex is not locked") end
+  if self[1] == co then -- same thread
+    self.locks = self.locks-1
+    if self.locks == 0 then -- completely unlocked
+      table_remove(self, 1) -- remove from queue
+      if #self > 0 then
+        -- give lock to next thread
+        self.locks = 1
+        local ok, err = coroutine_resume(self[1])
+        if not ok then
+          stderr:write(debug_traceback(co, "async: "..err).."\n")
+          error("error resuming coroutine")
+        end
+      end
+    end
+  else error("mutex unlock in wrong thread") end
+end
+
+-- Check if the mutex is locked.
+-- return boolean
+function mutex:locked() return self.locks > 0 end
+
+local meta_mutex = {__index = mutex}
 
 -- Luaseq
 
@@ -103,6 +157,15 @@ function Luaseq.async(f)
   else -- create task
     return setmetatable({}, meta_task)
   end
+end
+
+-- Create a mutex.
+-- mode: (optional) "reentrant"
+-- return mutex
+function Luaseq.mutex(mode)
+  local o = setmetatable({locks = 0}, meta_mutex)
+  if mode == "reentrant" then o.reentrant = true end
+  return o
 end
 
 return Luaseq

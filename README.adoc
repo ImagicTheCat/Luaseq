@@ -17,11 +17,19 @@ See link:src[], link:rockspecs[] or https://luarocks.org/modules/imagicthecat-0a
 
 == Concept
 
+=== Task
+
 A task can be created and then waited for completion from multiple coroutines. This can be used to design complex asynchronous dependencies.
 
-NOTE: Coroutine resume errors are written on `stderr` prefixed by `async: ...`.
+=== Mutex
+
+A mutex (**Mut**ual **Ex**clusion) is useful even for VM threads (coroutines). While the fundamental operations are not executed in parallel, higher asynchronous operations semantically can.
+
+WARNING: VM thread mutexes, as for OS thread mutexes, must be carefully used to avoid deadlocks (in this case, between coroutines).
 
 == API
+
+NOTE: Coroutine resume errors are written on `stderr` prefixed by `async: ...`.
 
 [source,lua]
 ----
@@ -37,6 +45,11 @@ NOTE: Coroutine resume errors are written on `stderr` prefixed by `async: ...`.
 --- return created coroutine (thread)
 Luaseq.async(f)
 
+-- Create a mutex.
+-- mode: (optional) "reentrant"
+-- return mutex
+Luaseq.mutex(mode)
+
 -- Task
 
 -- Wait for task completion.
@@ -51,7 +64,7 @@ task:wait()
 -- ...: task return values
 task(...)
 
--- Check if task is completed.
+-- Check if the task is completed.
 -- return boolean
 task:completed()
 
@@ -59,6 +72,24 @@ task:completed()
 -- When completed, two fields are added:
 task.r -- list of return values
 task.n -- number of return values
+
+-- Mutex
+
+-- Lock mutex.
+mutex:lock()
+
+-- Unlock mutex.
+-- Waiting coroutines are resumed in the same order of lock() calls.
+mutex:unlock()
+
+-- Check if the mutex is locked.
+-- return boolean
+mutex:locked()
+
+-- A mutex is a table where the array part is the list of locking coroutines,
+-- the first being the active one followed by the waiting ones.
+mutex.locks -- number of active thread locks
+mutex.reentrant -- exist/true if reentrant
 ----
 
 .Basic usage
@@ -87,4 +118,33 @@ async(function()
   end
 end)
 ----
+====
+
+.Mutex
+====
+If we have an asynchronous process which saves data to a SQL database:
+
+[source,lua]
+----
+local Luaseq = require("Luaseq")
+async = Luaseq.async
+
+local txn = Luaseq.mutex()
+
+-- Save the state of something using a transaction.
+-- query() could be asynchronous too.
+function save(thing)
+  txn:lock()
+  query("START TRANSACTION")
+  query("UPDATE ...")
+  some_async_task()
+  query("UPDATE ...")
+  some_async_task()
+  query("UPDATE ...")
+  query("COMMIT")
+  txn:unlock()
+end
+----
+
+Now `save(thing)` can be called from parallel (not fundamentally) tasks without corrupting the transaction.
 ====
