@@ -141,14 +141,15 @@ local meta_mutex = {__index = mutex}
 --- return task
 --
 -- With arguments: execute a function as a coroutine (directly resumed).
--- Note: this does nothing special, any coroutine can be used with tasks.
+-- Note: this does nothing special, any coroutine can be used with the library.
 --
 --- f: function
+--- ...: arguments
 --- return created coroutine (thread)
-function Luaseq.async(f)
+function Luaseq.async(f, ...)
   if f then -- create coroutine
     local co = coroutine_create(f)
-    local ok, err = coroutine_resume(co)
+    local ok, err = coroutine_resume(co, ...)
     if not ok then
       stderr:write(debug_traceback(co, "async: "..err).."\n")
       error("error resuming coroutine")

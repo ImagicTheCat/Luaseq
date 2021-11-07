@@ -43,11 +43,12 @@ WARNING: Task wait/completion and mutex lock/unlocking, as with callbacks, may t
 --- return task
 --
 -- With arguments: execute a function as a coroutine (directly resumed).
--- Note: this does nothing special, any coroutine can be used with tasks.
+-- Note: this does nothing special, any coroutine can be used with the library.
 --
 --- f: function
+--- ...: arguments
 --- return created coroutine (thread)
-Luaseq.async(f)
+Luaseq.async(f, ...)
 
 -- Create a mutex.
 -- mode: (optional) "reentrant"
