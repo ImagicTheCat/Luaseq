@@ -63,7 +63,7 @@ function task:completed() return self.r ~= nil end
 -- Waiting coroutines are resumed in the same order of wait() calls.
 --
 -- ...: task return values
-local function task_return(self, ...)
+local function task_complete(self, ...)
   if self.r then error("task already completed") end
   self.r, self.n = {...}, select("#", ...)
   for _, co in ipairs(self) do
@@ -77,7 +77,7 @@ end
 
 local meta_task = {
   __index = task,
-  __call = task_return
+  __call = task_complete
 }
 
 -- Mutex

@@ -31,7 +31,7 @@ do -- test subsequent completions/waits
   assert(sum == 40)
 end
 do -- other error checks
-  print("/!\\ Following async errors should be normal.")
+  print("/!\\ Following async errors about arithmetic on a nil value are normal.")
   local t = async()
   errcheck("async wait outside a coroutine", t.wait, t) -- outside coroutine
   -- error on first resume

@@ -29,7 +29,11 @@ WARNING: VM thread mutexes, as for OS thread mutexes, must be carefully used to 
 
 == API
 
+WARNING: To prevent coroutine resume errors from being silently handled, they are propagated to the caller (e.g. task completion or mutex unlocking) and will interrupt resuming of the other waiting coroutines. Instead of catching errors from the caller, it is probably better to catch them from the coroutines themselves, where it matters.
+
 NOTE: Coroutine resume errors are written on `stderr` prefixed by `async: ...`.
+
+WARNING: Task wait/completion and mutex lock/unlocking, as with callbacks, may transfer the execution to "third-party" code; thus the execution state must be carefully analyzed.
 
 [source,lua]
 ----
