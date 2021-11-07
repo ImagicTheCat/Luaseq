@@ -165,7 +165,10 @@ end
 -- return mutex
 function Luaseq.mutex(mode)
   local o = setmetatable({locks = 0}, meta_mutex)
-  if mode == "reentrant" then o.reentrant = true end
+  if mode then
+    if mode == "reentrant" then o.reentrant = true
+    else error("invalid mutex mode") end
+  end
   return o
 end
 

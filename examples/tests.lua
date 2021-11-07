@@ -86,6 +86,7 @@ do -- test reentrant mutex
   assert(not m:locked())
 end
 do -- check errors
+  errcheck("invalid mutex mode", mutex, "rentrant") -- typo
   local m = mutex()
   errcheck("mutex lock outside a coroutine", m.lock, m)
   errcheck("mutex unlock outside a coroutine", m.unlock, m)
