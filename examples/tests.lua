@@ -27,7 +27,7 @@ do -- test subsequent completions/waits
   assert(sum == 20)
   errcheck("task already completed", t, 3) -- must throw an error
   -- task can still be waited on
-  async(function() for i=1,10 do sum = sum+t:wait() end end)
+  async(function(n) for i=1,n do sum = sum+t:wait() end end, 10)
   assert(sum == 40)
 end
 do -- other error checks
