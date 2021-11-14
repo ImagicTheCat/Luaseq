@@ -27,16 +27,13 @@ SOFTWARE.
 
 local Luaseq = {}
 
-local select, error, ipairs = select, error, ipairs
-local setmetatable = setmetatable
+local select, ipairs, setmetatable = select, ipairs, setmetatable
 local table_unpack = table.unpack or unpack
 local table_insert, table_remove = table.insert, table.remove
 local coroutine_running = coroutine.running
 local coroutine_yield = coroutine.yield
 local coroutine_create = coroutine.create
 local coroutine_resume = coroutine.resume
-local debug_traceback = debug.traceback
-local stderr = io.stderr
 
 -- Task
 -- A task is a table where the array part is the list of waiting coroutines.
@@ -68,10 +65,7 @@ local function task_complete(self, ...)
   self.r, self.n = {...}, select("#", ...)
   for _, co in ipairs(self) do
     local ok, err = coroutine_resume(co, ...)
-    if not ok then
-      stderr:write(debug_traceback(co, "async: "..err).."\n")
-      error("error resuming coroutine")
-    end
+    if not ok then error(debug.traceback(co, err), 0) end
   end
 end
 
@@ -118,10 +112,7 @@ function mutex:unlock()
         -- give lock to next thread
         self.locks = 1
         local ok, err = coroutine_resume(self[1])
-        if not ok then
-          stderr:write(debug_traceback(co, "async: "..err).."\n")
-          error("error resuming coroutine")
-        end
+        if not ok then error(debug.traceback(co, err), 0) end
       end
     end
   else error("mutex unlock in wrong thread") end
@@ -150,10 +141,7 @@ function Luaseq.async(f, ...)
   if f then -- create coroutine
     local co = coroutine_create(f)
     local ok, err = coroutine_resume(co, ...)
-    if not ok then
-      stderr:write(debug_traceback(co, "async: "..err).."\n")
-      error("error resuming coroutine")
-    end
+    if not ok then error(debug.traceback(co, err), 0) end
     return co
   else -- create task
     return setmetatable({}, meta_task)

@@ -31,14 +31,13 @@ do -- test subsequent completions/waits
   assert(sum == 40)
 end
 do -- other error checks
-  print("/!\\ Following async errors about arithmetic on a nil value are normal.")
   local t = async()
   errcheck("async wait outside a coroutine", t.wait, t) -- outside coroutine
   -- error on first resume
-  errcheck("error resuming coroutine", async, function() return 1*nil end)
+  errcheck("arithmetic on a nil value", async, function() return 1*nil end)
   -- error on subsequent resume
   async(function() t:wait(); return 1*nil end)
-  errcheck("error resuming coroutine", t)
+  errcheck("arithmetic on a nil value", t)
 end
 
 -- Mutex
@@ -101,7 +100,7 @@ do -- check errors
   local t = async()
   async(function()
     m2:lock(); t:wait()
-    errcheck("error resuming coroutine", m2.unlock, m2)
+    errcheck("arithmetic on a nil value", m2.unlock, m2)
   end)
   async(function()
     m2:lock()
