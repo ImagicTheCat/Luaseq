@@ -1,10 +1,10 @@
 -- https://github.com/ImagicTheCat/Luaseq
--- MIT license (see LICENSE)
+-- MIT license (see LICENSE or src/Luaseq.lua)
 
 --[[
 MIT License
 
-Copyright (c) 2019 Imagic
+Copyright (c) 2019 ImagicTheCat
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
