@@ -27,8 +27,9 @@ SOFTWARE.
 
 local Luaseq = {}
 
-local select, ipairs, setmetatable = select, ipairs, setmetatable
+local select, ipairs, setmetatable, xpcall = select, ipairs, setmetatable, xpcall
 local table_unpack = table.unpack or unpack
+local function table_pack(...) return {n = select("#", ...), ...} end
 local table_insert, table_remove = table.insert, table.remove
 local coroutine_running = coroutine.running
 local coroutine_yield = coroutine.yield
@@ -41,37 +42,53 @@ local coroutine_resume = coroutine.resume
 local task = {}
 
 -- Wait for task completion.
--- Will yield the current coroutine if the task is not completed.
+-- Will yield the current coroutine if the task is not done.
 --
--- return task return values
+-- returns task return values or propagates the task error
 function task:wait()
-  if self.r then return table_unpack(self.r, 1, self.n) end -- already done, return values
-  local co, main = coroutine_running()
-  if not co or main then error("async wait outside a coroutine") end
-  table_insert(self, co)
-  return coroutine_yield() -- wait for the task to return
+  if not self.r then -- not done yet
+    -- wait for the task to return
+    local co, main = coroutine_running()
+    if not co or main then error("async wait outside a coroutine") end
+    table_insert(self, co)
+    coroutine_yield()
+  end
+  if self.err then error(table_unpack(self.r, 1, self.n)) -- propagate error
+  else return table_unpack(self.r, 1, self.n) end -- completed, return values
 end
 
--- Check if the task is completed.
--- return boolean
-function task:completed() return self.r ~= nil end
+-- Check if the task is done (completed or terminated with an error).
+function task:done() return self.r ~= nil end
 
 -- Complete task (subsequent calls will throw an error).
 -- Waiting coroutines are resumed in the same order of wait() calls.
 --
 -- ...: task return values
-local function task_complete(self, ...)
-  if self.r then error("task already completed") end
-  self.r, self.n = {...}, select("#", ...)
+function task:complete(...)
+  if self.r then error("task already done") end
+  self.r = table_pack(...)
   for _, co in ipairs(self) do
-    local ok, err = coroutine_resume(co, ...)
+    local ok, err = coroutine_resume(co)
+    if not ok then error(debug.traceback(co, err), 0) end
+  end
+end
+
+-- Terminate task with an error (subsequent calls will throw an error).
+-- Waiting coroutines are resumed in the same order of wait() calls.
+--
+-- ...: arguments passed to standard error()
+function task:error(...)
+  if self.r then error("task already done") end
+  self.r, self.err = table_pack(...), true
+  for _, co in ipairs(self) do
+    local ok, err = coroutine_resume(co)
     if not ok then error(debug.traceback(co, err), 0) end
   end
 end
 
 local meta_task = {
   __index = task,
-  __call = task_complete
+  __call = task.complete
 }
 
 -- Mutex
@@ -131,21 +148,25 @@ local meta_mutex = {__index = mutex}
 -- No arguments: create a task.
 --- return task
 --
--- With arguments: execute a function as a coroutine (directly resumed).
--- Note: this does nothing special, any coroutine can be used with the library.
---
+-- With arguments: create a VM thread wrapped as a task.
+-- I.e. it executes the passed function as a coroutine, like a detached job.
 --- f: function
 --- ...: arguments
---- return created coroutine (thread)
+--- return task
 function Luaseq.async(f, ...)
+  local task = setmetatable({}, meta_task)
   if f then -- create coroutine
-    local co = coroutine_create(f)
+    local co = coroutine_create(function(...)
+      local traceback
+      local function error_handler(err) traceback = debug.traceback(err, 2) end
+      local r = table_pack(xpcall(f, error_handler, ...)) -- call
+      if r[1] then task(table_unpack(r, 2, r.n)) -- complete task
+      else task:error(traceback, 0) end -- task error
+    end)
     local ok, err = coroutine_resume(co, ...)
     if not ok then error(debug.traceback(co, err), 0) end
-    return co
-  else -- create task
-    return setmetatable({}, meta_task)
   end
+  return task
 end
 
 -- Create a mutex.

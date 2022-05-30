@@ -29,7 +29,7 @@ WARNING: VM thread mutexes, as for OS thread mutexes, must be carefully used to 
 
 == API
 
-WARNING: To prevent coroutine resume errors from being silently handled, they are propagated to the caller (e.g. task completion or mutex unlocking) and will interrupt resuming of the other waiting coroutines. Instead of catching errors from the caller, it is probably better to catch them from the coroutines themselves, where it matters.
+WARNING: To prevent coroutine resume errors from being silently handled, they are propagated to the caller (e.g. task completion or mutex unlocking) and will interrupt resuming of the other waiting coroutines. Instead of catching errors from the caller, it is probably better to catch them from the coroutines themselves, where it matters. This is handled by default by the `async()` API.
 
 NOTE: Resume errors are recursively propagated using `debug.traceback`, which may result in multiple stack tracebacks.
 
