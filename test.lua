@@ -2,7 +2,7 @@
 -- or Lua 5.1
 
 -- config
-local envs = {"luajit", "lua5.1", "lua5.2", "lua5.3", "lua5.4"}
+local envs = {"luajit", "lua5.2", "lua5.3", "lua5.4"}
 local tests = {
   "examples/tests.lua"
 }

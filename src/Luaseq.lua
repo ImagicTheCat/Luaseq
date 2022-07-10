@@ -42,47 +42,58 @@ local coroutine_resume = coroutine.resume
 local task = {}
 
 -- Wait for task completion.
--- Will yield the current coroutine if the task is not done.
---
--- returns task return values or propagates the task error
-function task:wait()
-  if not self.r then -- not done yet
-    -- wait for the task to return
-    local co, main = coroutine_running()
-    if not co or main then error("async wait outside a coroutine") end
-    table_insert(self, co)
-    coroutine_yield()
+-- No arguments (sync): yield the current coroutine if the task is not done yet.
+--- returns the task return values or propagates the task error.
+-- With arguments (async):
+--- callback(task): called when the task is done (completion or error)
+function task:wait(callback)
+  if callback then
+    if not self.r then table_insert(self, callback)
+    else callback(self) end
+  else -- coroutine handling
+    if not self.r then -- not done yet
+      -- wait for the task to return
+      local co, main = coroutine_running()
+      if not co or main then error("async wait from a non-coroutine thread") end
+      table_insert(self, co)
+      coroutine_yield()
+    end
+    if self.err then error(table_unpack(self.r, 1, self.n)) -- propagate error
+    else return table_unpack(self.r, 1, self.n) end -- completed, return values
   end
-  if self.err then error(table_unpack(self.r, 1, self.n)) -- propagate error
-  else return table_unpack(self.r, 1, self.n) end -- completed, return values
 end
 
 -- Check if the task is done (completed or terminated with an error).
+-- return boolean
 function task:done() return self.r ~= nil end
 
 -- Complete task (subsequent calls will throw an error).
--- Waiting coroutines are resumed in the same order of wait() calls.
+-- Waiting coroutines/callbacks are resumed in the same order of wait() calls.
 --
 -- ...: task return values
 function task:complete(...)
   if self.r then error("task already done") end
   self.r = table_pack(...)
-  for _, co in ipairs(self) do
-    local ok, err = coroutine_resume(co)
-    if not ok then error(debug.traceback(co, err), 0) end
+  for _, callback in ipairs(self) do
+    if type(callback) == "thread" then
+      local ok, err = coroutine_resume(callback)
+      if not ok then error(debug.traceback(callback, err), 0) end
+    else callback(self) end
   end
 end
 
 -- Terminate task with an error (subsequent calls will throw an error).
--- Waiting coroutines are resumed in the same order of wait() calls.
+-- Waiting coroutines/callbacks are resumed in the same order of wait() calls.
 --
 -- ...: arguments passed to standard error()
 function task:error(...)
   if self.r then error("task already done") end
   self.r, self.err = table_pack(...), true
-  for _, co in ipairs(self) do
-    local ok, err = coroutine_resume(co)
-    if not ok then error(debug.traceback(co, err), 0) end
+  for _, callback in ipairs(self) do
+    if type(callback) == "thread" then
+      local ok, err = coroutine_resume(callback)
+      if not ok then error(debug.traceback(callback, err), 0) end
+    else callback(self) end
   end
 end
 
@@ -143,16 +154,14 @@ local meta_mutex = {__index = mutex}
 
 -- Luaseq
 
--- Async utility.
+-- Asynchronous operation.
 --
--- No arguments: create a task.
---- return task
---
--- With arguments: create a VM thread wrapped as a task.
+-- No arguments: create a standalone task handle.
+-- With arguments: create a task wrapping an asynchronous function call.
 -- I.e. it executes the passed function as a coroutine, like a detached job.
 --- f: function
 --- ...: arguments
---- return task
+-- return task
 function Luaseq.async(f, ...)
   local task = setmetatable({}, meta_task)
   if f then -- create coroutine

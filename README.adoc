@@ -15,21 +15,30 @@ Luaseq is an asynchronous helper library built on coroutines. It can be used to 
 
 See link:src[], link:rockspecs[] or https://luarocks.org/modules/imagicthecat-0a6b669a3a/luaseq[luarocks].
 
+CAUTION: PUC Lua 5.1 is not supported (lack of xpcall arguments and yield accross pcall).
+
 == Concept
 
 === Task
 
-A task can be created and then waited for completion from multiple coroutines. This can be used to design complex asynchronous dependencies.
+A task represents an asynchronous operation; it may be a standalone handle or an asynchronous function call wrapped as a coroutine.
+
+Other operations can wait for the task completion, e.g. from multiple coroutines. This may be used to design complex asynchronous dependencies.
 
 === Mutex
 
-A mutex (**Mut**ual **Ex**clusion) is useful even for VM threads (coroutines). While the fundamental operations are not executed in parallel, higher asynchronous operations semantically can.
+A mutex (**Mut**ual **Ex**clusion) is useful even for cooperative VM threads (coroutines). While the fundamental operations are not executed in parallel, higher asynchronous operations semantically can.
 
 WARNING: VM thread mutexes, as for OS thread mutexes, must be carefully used to avoid deadlocks (in this case, between coroutines).
 
 == API
 
-WARNING: To prevent coroutine resume errors from being silently handled, they are propagated to the caller (e.g. task completion or mutex unlocking) and will interrupt resuming of the other waiting coroutines. Instead of catching errors from the caller, it is probably better to catch them from the coroutines themselves, where it matters. This is handled by default by the `async()` API.
+[WARNING]
+====
+To prevent coroutine resume errors from being silently handled, they are propagated to the caller (e.g. task completion or mutex unlocking) and will interrupt resuming of the other waiting coroutines. Instead of catching errors from the resuming side, it is probably better to catch them from the coroutines themselves, where it matters.
+
+This is already handled by the `async()` API which propagates the errors to the task handle.
+====
 
 NOTE: Resume errors are recursively propagated using `debug.traceback`, which may result in multiple stack tracebacks.
 
@@ -37,17 +46,14 @@ WARNING: Task wait/completion and mutex lock/unlocking, as with callbacks, may t
 
 [source,lua]
 ----
--- Async utility.
+-- Asynchronous operation.
 --
--- No arguments: create a task.
---- return task
---
--- With arguments: execute a function as a coroutine (directly resumed).
--- Note: this does nothing special, any coroutine can be used with the library.
---
+-- No arguments: create a standalone task handle.
+-- With arguments: create a task wrapping an asynchronous function call.
+-- I.e. it executes the passed function as a coroutine, like a detached job.
 --- f: function
 --- ...: arguments
---- return created coroutine (thread)
+-- return task
 Luaseq.async(f, ...)
 
 -- Create a mutex.
@@ -58,25 +64,34 @@ Luaseq.mutex(mode)
 -- Task
 
 -- Wait for task completion.
--- Will yield the current coroutine if the task is not completed.
---
--- return task return values
-task:wait()
+-- No arguments (sync): yield the current coroutine if the task is not done yet.
+--- returns the task return values or propagates the task error.
+-- With arguments (async):
+--- callback(task): called when the task is done (completion or error)
+task:wait(callback)
 
 -- Complete task (subsequent calls will throw an error).
--- Waiting coroutines are resumed in the same order of wait() calls.
+-- Waiting coroutines/callbacks are resumed in the same order of wait() calls.
 --
 -- ...: task return values
+task:complete(...)
 task(...)
 
--- Check if the task is completed.
--- return boolean
-task:completed()
+-- Terminate task with an error (subsequent calls will throw an error).
+-- Waiting coroutines/callbacks are resumed in the same order of wait() calls.
+--
+-- ...: arguments passed to standard error()
+task:error(...)
 
--- A task is a table where the array part is the list of waiting coroutines.
--- When completed, two fields are added:
-task.r -- list of return values
-task.n -- number of return values
+-- Check if the task is done (completed or terminated with an error).
+-- return boolean
+task:done()
+
+-- A task is a table where the array part is the list of waiting coroutines/callbacks.
+-- When done, some fields are added:
+task.r -- table of returned values, formatted like table.pack(...)
+task.err -- truthy if the task terminated with an error
+-- In that case, the returned values are arguments for the standard error function.
 
 -- Mutex
 
@@ -108,15 +123,16 @@ async = Luaseq.async
 
 -- Create the async download function.
 function download(url)
-  local r = async() -- create task
-  http_request(url, function(content) -- useless outer callback for the sake of clarity
-    r(content) -- complete task, return content
+  local task = async() -- create task
+  http_request(url, function(ok, content_or_error)
+    if ok then task(content_or_error)
+    else task:error(content_or_error) end
   end)
-  return r:wait() -- wait for the returned values
+  return task:wait() -- wait for the returned values
 end
 
--- Download 10 URLs sequentially (need to be inside a coroutine).
-async(function()
+-- Download 10 URLs sequentially.
+local download_task = async(function()
   for i=1,10 do
     local content = download("http://foo.bar/"..i..".txt")
     print(content)

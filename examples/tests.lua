@@ -4,20 +4,21 @@ mutex = require("Luaseq").mutex
 
 local function errcheck(perr, f, ...)
   local ok, err = pcall(f, ...)
-  assert(not ok and not not err:find(perr))
+  assert(not ok and not not err:find(perr, 1, true))
 end
 
 -- Task
 
-do -- test multiple coroutines waiting on a task
+do -- test callback and multiple coroutines waiting on a task
   local t = async()
   local sum = 0
+  t:wait(function(t) sum = t:wait()+sum end)
   for i=1,3 do async(function() sum = t:wait()+sum end) end
   assert(sum == 0)
   assert(not t:done())
   t(2)
   assert(t:done())
-  assert(sum == 6)
+  assert(sum == 8)
 end
 do -- test subsequent completions/waits
   local t = async()
@@ -26,18 +27,31 @@ do -- test subsequent completions/waits
   t(2)
   assert(sum == 20)
   errcheck("task already done", t, 3) -- must throw an error
+  errcheck("task already done", t.error, t, "errmsg") -- must throw an error
   -- task can still be waited on
   async(function(n) for i=1,n do sum = sum+t:wait() end end, 10)
   assert(sum == 40)
 end
+do -- standalone error tests
+  local t = async()
+  local tc = async(function() t:wait() end)
+  t:error("test error #42")
+  errcheck("task already done", t)
+  errcheck("test error #42", t.wait, t)
+  errcheck("test error #42", t.wait, t, function(t) t:wait() end)
+  errcheck("test error #42", tc.wait, tc)
+end
 do -- other error checks
   local t = async()
-  errcheck("async wait outside a coroutine", t.wait, t) -- outside coroutine
+  -- non-coroutine thread
+  errcheck("async wait from a non-coroutine thread", t.wait, t)
   -- error on first resume
-  errcheck("arithmetic on a nil value", async, function() return 1*nil end)
+  local t2 = async(function() return 1*nil end)
+  errcheck("arithmetic on a nil value", t2.wait, t2)
   -- error on subsequent resume
-  async(function() t:wait(); return 1*nil end)
-  errcheck("arithmetic on a nil value", t)
+  local t3 = async(function() t:wait(); return 1*nil end)
+  t()
+  errcheck("arithmetic on a nil value", t3.wait, t3)
 end
 
 -- Mutex
