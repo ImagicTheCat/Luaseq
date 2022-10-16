@@ -15,7 +15,7 @@ Luaseq is an asynchronous helper library built on coroutines. It can be used to 
 
 See link:src[], link:rockspecs[] or https://luarocks.org/modules/imagicthecat-0a6b669a3a/luaseq[luarocks].
 
-CAUTION: PUC Lua 5.1 is not supported (lack of xpcall arguments and yield accross pcall).
+CAUTION: PUC Lua 5.1 is not supported (lack of xpcall arguments and yield across pcall).
 
 == Concept
 
@@ -63,23 +63,26 @@ Luaseq.mutex(mode)
 
 -- Task
 
--- Wait for task completion.
+-- Wait for task completion (still usable when done).
 -- No arguments (sync): yield the current coroutine if the task is not done yet.
 --- returns the task return values or propagates the task error.
 -- With arguments (async):
 --- callback(task): called when the task is done (completion or error)
 task:wait(callback)
 
--- Complete task (subsequent calls will throw an error).
+-- Task return (completion or termination).
 -- Waiting coroutines/callbacks are resumed in the same order of wait() calls.
+-- Subsequent calls will throw an error.
 --
--- ...: task return values
-task:complete(...)
+-- ...: common soft error handling interface (ok, ...)
+--- When ok is truthy, varargs are return values, otherwise varargs are standard error() arguments.
 task(...)
 
--- Terminate task with an error (subsequent calls will throw an error).
--- Waiting coroutines/callbacks are resumed in the same order of wait() calls.
---
+-- Complete task (equivalent to task(true, ...)).
+-- ...: task return values
+task:complete(...)
+
+-- Terminate task with an error (equivalent to task(false, ...)).
 -- ...: arguments passed to standard error()
 task:error(...)
 
@@ -89,9 +92,7 @@ task:done()
 
 -- A task is a table where the array part is the list of waiting coroutines/callbacks.
 -- When done, some fields are added:
-task.r -- table of returned values, formatted like table.pack(...)
-task.err -- truthy if the task terminated with an error
--- In that case, the returned values are arguments for the standard error function.
+task.r -- packed task values {ok, ...} (see table.pack())
 
 -- Mutex
 

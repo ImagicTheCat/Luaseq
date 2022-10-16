@@ -41,7 +41,7 @@ local coroutine_resume = coroutine.resume
 
 local task = {}
 
--- Wait for task completion.
+-- Wait for task completion (still usable when done).
 -- No arguments (sync): yield the current coroutine if the task is not done yet.
 --- returns the task return values or propagates the task error.
 -- With arguments (async):
@@ -58,8 +58,9 @@ function task:wait(callback)
       table_insert(self, co)
       coroutine_yield()
     end
-    if self.err then error(table_unpack(self.r, 1, self.n)) -- propagate error
-    else return table_unpack(self.r, 1, self.n) end -- completed, return values
+    local r = self.r
+    if not r[1] then error(table_unpack(r, 2, r.n)) -- propagate error
+    else return table_unpack(r, 2, r.n) end -- completed, return values
   end
 end
 
@@ -67,13 +68,16 @@ end
 -- return boolean
 function task:done() return self.r ~= nil end
 
--- Complete task (subsequent calls will throw an error).
+-- Task return (completion or termination).
 -- Waiting coroutines/callbacks are resumed in the same order of wait() calls.
+-- Subsequent calls will throw an error.
 --
--- ...: task return values
-function task:complete(...)
+-- ...: common soft error handling interface (ok, ...)
+--- When ok is truthy, varargs are return values, otherwise varargs are standard error() arguments.
+local function task_return(self, ...)
   if self.r then error("task already done") end
   self.r = table_pack(...)
+  -- dispatch
   for _, callback in ipairs(self) do
     if type(callback) == "thread" then
       local ok, err = coroutine_resume(callback)
@@ -82,24 +86,17 @@ function task:complete(...)
   end
 end
 
--- Terminate task with an error (subsequent calls will throw an error).
--- Waiting coroutines/callbacks are resumed in the same order of wait() calls.
---
+-- Complete task (equivalent to task(true, ...)).
+-- ...: task return values
+function task:complete(...) task_return(self, true, ...) end
+
+-- Terminate task with an error (equivalent to task(false, ...)).
 -- ...: arguments passed to standard error()
-function task:error(...)
-  if self.r then error("task already done") end
-  self.r, self.err = table_pack(...), true
-  for _, callback in ipairs(self) do
-    if type(callback) == "thread" then
-      local ok, err = coroutine_resume(callback)
-      if not ok then error(debug.traceback(callback, err), 0) end
-    else callback(self) end
-  end
-end
+function task:error(...) task_return(self, false, ...) end
 
 local meta_task = {
   __index = task,
-  __call = task.complete
+  __call = task_return
 }
 
 -- Mutex
@@ -169,8 +166,8 @@ function Luaseq.async(f, ...)
       local traceback
       local function error_handler(err) traceback = debug.traceback(err, 2) end
       local r = table_pack(xpcall(f, error_handler, ...)) -- call
-      if r[1] then task(table_unpack(r, 2, r.n)) -- complete task
-      else task:error(traceback, 0) end -- task error
+      if r[1] then task(table_unpack(r, 1, r.n)) -- complete task
+      else task(false, traceback, 0) end -- task error
     end)
     local ok, err = coroutine_resume(co, ...)
     if not ok then error(debug.traceback(co, err), 0) end
