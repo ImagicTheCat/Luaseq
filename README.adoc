@@ -9,7 +9,9 @@ endif::[]
 :toc: left
 :toclevels: 5
 
-Luaseq is an asynchronous helper library built on coroutines. It can be used to perform asynchronous tasks in a "sequential" way.
+Luaseq is an abstraction over coroutines (aka. cooperative threads or VM threads) to nicely build and synchronize asynchronous operations.
+
+An asynchronous operation relative to a system thread can be synchronous relative to a coroutine.
 
 == Install
 
@@ -126,13 +128,12 @@ async = Luaseq.async
 function download(url)
   local task = async() -- create task
   http_request(url, function(ok, content_or_error)
-    if ok then task(content_or_error)
-    else task:error(content_or_error) end
+    task(ok, content_or_error) -- not simplified for clarity
   end)
   return task:wait() -- wait for the returned values
 end
 
--- Download 10 URLs sequentially.
+-- Download 10 URLs synchronously.
 local download_task = async(function()
   for i=1,10 do
     local content = download("http://foo.bar/"..i..".txt")
