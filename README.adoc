@@ -9,7 +9,7 @@ endif::[]
 :toc: left
 :toclevels: 5
 
-Luaseq is an abstraction over coroutines (aka. cooperative threads or VM threads) to nicely build and synchronize asynchronous operations.
+Luaseq is an abstraction over Lua coroutines (aka. cooperative threads or VM threads) to nicely build and synchronize asynchronous operations.
 
 An asynchronous operation relative to a system thread can be synchronous relative to a coroutine.
 
