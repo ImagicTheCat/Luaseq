@@ -77,16 +77,16 @@ task:wait(callback)
 -- Subsequent calls will throw an error.
 --
 -- ...: common soft error handling interface (ok, ...)
---- When ok is truthy, varargs are return values, otherwise varargs are standard error() arguments.
+--- When ok is truthy, varargs are return values, otherwise an error object / message.
 task(...)
 
 -- Complete task (equivalent to task(true, ...)).
 -- ...: task return values
 task:complete(...)
 
--- Terminate task with an error (equivalent to task(false, ...)).
--- ...: arguments passed to standard error()
-task:error(...)
+-- Terminate task with an error (equivalent to task(false, err)).
+-- err: error object / message
+task:error(err)
 
 -- Check if the task is done (completed or terminated with an error).
 -- return boolean

@@ -59,7 +59,7 @@ function task:wait(callback)
       coroutine_yield()
     end
     local r = self.r
-    if not r[1] then error(table_unpack(r, 2, r.n)) -- propagate error
+    if not r[1] then error(r[2], 0) -- propagate error
     else return table_unpack(r, 2, r.n) end -- completed, return values
   end
 end
@@ -73,7 +73,7 @@ function task:done() return self.r ~= nil end
 -- Subsequent calls will throw an error.
 --
 -- ...: common soft error handling interface (ok, ...)
---- When ok is truthy, varargs are return values, otherwise varargs are standard error() arguments.
+--- When ok is truthy, varargs are return values, otherwise an error object / message.
 local function task_return(self, ...)
   if self.r then error("task already done") end
   self.r = table_pack(...)
@@ -90,9 +90,9 @@ end
 -- ...: task return values
 function task:complete(...) task_return(self, true, ...) end
 
--- Terminate task with an error (equivalent to task(false, ...)).
--- ...: arguments passed to standard error()
-function task:error(...) task_return(self, false, ...) end
+-- Terminate task with an error (equivalent to task(false, err)).
+-- err: error object / message
+function task:error(err) task_return(self, false, err) end
 
 local meta_task = {
   __index = task,
