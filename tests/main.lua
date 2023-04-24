@@ -1,11 +1,9 @@
 package.path = "src/?.lua;"..package.path
+
 async = require("Luaseq").async
 mutex = require("Luaseq").mutex
 
-local function asyncR(f, ...)
-  local task = async(f, ...)
-  task:wait(task.wait)
-end
+local function asyncR(f, ...) coroutine.wrap(f)(...) end
 
 local function errcheck(perr, f, ...)
   local ok, err = pcall(f, ...)

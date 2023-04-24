@@ -4,7 +4,7 @@
 -- config
 local envs = {"luajit", "lua5.2", "lua5.3", "lua5.4"}
 local tests = {
-  "examples/tests.lua"
+  "tests/main.lua"
 }
 -- test
 local errors = 0
