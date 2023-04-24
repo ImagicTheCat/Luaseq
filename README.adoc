@@ -46,74 +46,90 @@ NOTE: Resume errors are recursively propagated using `debug.traceback`, which ma
 
 WARNING: Task wait/completion and mutex lock/unlocking, as with callbacks, may transfer the execution to "third-party" code; thus the execution state must be carefully analyzed.
 
-[source,lua]
-----
--- Asynchronous operation.
---
--- No arguments: create a standalone task handle.
--- With arguments: create a task wrapping an asynchronous function call.
--- I.e. it executes the passed function as a coroutine, like a detached job.
---- f: function
---- ...: arguments
--- return task
-Luaseq.async(f, ...)
+=== Task
 
--- Create a mutex.
--- mode: (optional) "reentrant"
--- return mutex
-Luaseq.mutex(mode)
+A task is a table where the array part is the list of waiting coroutines/callbacks.
 
--- Task
+When done, a field is added:
 
--- Wait for task completion (still usable when done).
--- No arguments (sync): yield the current coroutine if the task is not done yet.
---- returns the task return values or propagates the task error.
--- With arguments (async):
---- callback(task): called when the task is done (completion or error)
-task:wait(callback)
+task.r:: packed task values `(ok, ...)` (see `table.pack()`)
 
--- Task return (completion or termination).
--- Waiting coroutines/callbacks are resumed in the same order of wait() calls.
--- Subsequent calls will throw an error.
---
--- ...: common soft error handling interface (ok, ...)
---- When ok is truthy, varargs are return values, otherwise an error object / message.
-task(...)
+==== Luaseq.async(f, ...)
 
--- Complete task (equivalent to task(true, ...)).
--- ...: task return values
-task:complete(...)
+Asynchronous operation.
 
--- Terminate task with an error (equivalent to task(false, err)).
--- err: error object / message
-task:error(err)
+No arguments: create a standalone task handle.
 
--- Check if the task is done (completed or terminated with an error).
--- return boolean
-task:done()
+With arguments: create a task wrapping an asynchronous function call. I.e. it executes the passed function as a coroutine, like a detached job.
 
--- A task is a table where the array part is the list of waiting coroutines/callbacks.
--- When done, some fields are added:
-task.r -- packed task values {ok, ...} (see table.pack())
 
--- Mutex
+f:: function
+...:: arguments
 
--- Lock mutex.
-mutex:lock()
+Return created task.
 
--- Unlock mutex.
--- Waiting coroutines are resumed in the same order of lock() calls.
-mutex:unlock()
+==== task:wait([callback])
 
--- Check if the mutex is locked.
--- return boolean
-mutex:locked()
+Wait for task completion (still usable when done).
 
--- A mutex is a table where the array part is the list of locking coroutines,
--- the first being the active one followed by the waiting ones.
-mutex.locks -- number of active thread locks
-mutex.reentrant -- exist/true if reentrant
-----
+No arguments (sync): yield the current coroutine if the task is not done yet. It returns the task return values or propagates the task error.
+
+With arguments (async):
+
+callback(task):: called when the task is done (completion or error)
+
+==== task(ok, ...)
+
+Task return (completion or termination).
+
+Waiting coroutines/callbacks are resumed in the same order of `task:wait` calls. Subsequent calls will throw an error.
+
+(ok, ...):: Common soft error handling interface. When *ok* is truthy, *...* holds the return values, otherwise an error message.
+
+==== task:complete(...)
+
+Complete task (equivalent to `task(true, ...)`).
+
+...:: task return values
+
+==== task:error(err)
+
+Terminate task with an error (equivalent to `task(false, err)`).
+
+err:: error message
+
+==== task:done()
+
+Check if the task is done (completed or terminated with an error). Return boolean.
+
+=== Mutex
+
+A mutex is a table where the array part is the list of locking coroutines, the first being the active one followed by the waiting ones.
+
+mutex.locks:: number of active thread locks
+mutex.reentrant:: exist/true if reentrant
+
+==== Luaseq.mutex([mode])
+
+Create a mutex.
+
+mode:: `"reentrant"` to make the mutex reentrant
+
+==== mutex:lock()
+
+Lock the mutex.
+
+==== mutex:unlock()
+
+Unlock the mutex.
+
+Waiting coroutines are resumed in the same order of `mutex:lock` calls.
+
+==== mutex:locked()
+
+Check if the mutex is locked. Return boolean
+
+== Examples
 
 .Basic usage
 ====
