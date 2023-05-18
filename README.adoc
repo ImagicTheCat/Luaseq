@@ -9,7 +9,7 @@ endif::[]
 :toc: left
 :toclevels: 5
 
-Luaseq is an abstraction over Lua coroutines (aka. cooperative threads or VM threads) to nicely build and synchronize asynchronous operations.
+Luaseq is an abstraction over Lua coroutines (aka. cooperative threads or VM threads footnote:[At the exception of VM threads which are not coroutines, e.g. the main thread.]) to nicely build and synchronize asynchronous operations.
 
 An asynchronous operation relative to a system thread can be synchronous relative to a coroutine.
 
@@ -33,6 +33,12 @@ A mutex (**Mut**ual **Ex**clusion) is useful even for cooperative VM threads (co
 
 WARNING: VM thread mutexes, as for OS thread mutexes, must be carefully used to avoid deadlocks (in this case, between coroutines).
 
+=== Semaphore
+
+A https://en.wikipedia.org/wiki/Semaphore_(programming)[semaphore] for coroutines is also useful to implement some synchronization patterns.
+
+In this case, the terminology of the semaphore is about the management of resource units. E.g. `demand`, `supply` and `units` instead of POSIX's `wait`, `post` and `value`.
+
 == API
 
 [WARNING]
@@ -44,7 +50,7 @@ This is already handled by the `async()` API which propagates the errors to the 
 
 NOTE: Resume errors are recursively propagated using `debug.traceback`, which may result in multiple stack tracebacks.
 
-WARNING: Task wait/completion and mutex lock/unlocking, as with callbacks, may transfer the execution to "third-party" code; thus the execution state must be carefully analyzed.
+WARNING: Task wait/completion, mutex lock/unlocking or semaphore demand/supply, as with callbacks, may transfer the execution to "third-party" code; thus the execution state must be carefully analyzed.
 
 === Task
 
@@ -129,6 +135,30 @@ Waiting coroutines are resumed in the same order of `mutex:lock` calls.
 
 Check if the mutex is locked. Return boolean
 
+=== Semaphore
+
+A semaphore is a table where the array part is the list of demanding/waiting coroutines.
+
+semaphore.units:: amount of available units
+
+==== Luaseq.semaphore(units)
+
+Create a semaphore.
+
+units:: initial amount of units, must be `>= 0`
+
+==== semaphore:supply()
+
+Supply a unit.
+
+Waiting coroutines are resumed in the same order of `demand` calls, one per `supply` call.
+
+==== semaphore:demand()
+
+Demand a unit.
+
+Yield the current coroutine if no unit is available.
+
 == Examples
 
 .Basic usage
@@ -186,4 +216,35 @@ end
 ----
 
 Now `save(thing)` can be called from parallel (not fundamentally) tasks without corrupting the transaction.
+====
+
+.Semaphore
+====
+
+If we have work to queue, but only 4 processing units are available:
+
+[source,lua]
+----
+local Luaseq = require("Luaseq")
+async = Luaseq.async
+
+local UNITS = 4
+local sem = Luaseq.semaphore(UNITS)
+
+local function some_async_operation(i, callback)
+  -- ...
+end
+
+-- release the claimed unit when done
+local function finished() sem:supply() end
+
+local task = async(function()
+  -- do all the work
+  for i=1,1e3 do
+    sem:demand() -- claim a unit
+    some_async_operation(i, finished)
+  end
+  -- reclaim all units: wait end of processing
+  for i=1,UNITS do sem:demand() end
+end)
 ====

@@ -1,7 +1,8 @@
 package.path = "src/?.lua;"..package.path
 
-async = require("Luaseq").async
-mutex = require("Luaseq").mutex
+local async = require("Luaseq").async
+local mutex = require("Luaseq").mutex
+local semaphore = require("Luaseq").semaphore
 
 local function asyncR(f, ...) coroutine.wrap(f)(...) end
 
@@ -125,4 +126,36 @@ do -- check errors
     m2:unlock()
   end)
   t:complete()
+end
+
+-- Semaphore
+do -- test basics
+  local sem = semaphore(2)
+  local done
+  assert(sem.units == 2)
+  asyncR(function()
+    for i=1,4 do sem:demand() end
+    done = true
+  end)
+  assert(sem.units == 0 and not done)
+  sem:supply()
+  assert(sem.units == 0 and not done)
+  sem:supply()
+  assert(sem.units == 0 and done)
+  sem:supply()
+  assert(sem.units == 1)
+  sem:demand()
+  assert(sem.units == 0)
+end
+do -- check errors
+  errcheck("units must be >= 0", semaphore, -1)
+  --
+  local sem = semaphore(0)
+  errcheck("demand from a non-coroutine thread", sem.demand, sem)
+  --
+  asyncR(function()
+    sem:demand()
+    error "test#1"
+  end)
+  errcheck("test#1", sem.supply, sem)
 end

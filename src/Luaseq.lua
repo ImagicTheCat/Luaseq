@@ -144,6 +144,40 @@ function mutex:locked() return self.locks > 0 end
 
 local meta_mutex = {__index = mutex}
 
+-- Semaphore
+
+-- A semaphore is a table where the array part is the list of waiting coroutines.
+local semaphore = {}
+
+-- Supply a unit.
+--
+-- Waiting coroutines are resumed in the same order of demand() calls, one per
+-- supply() call.
+function semaphore:supply()
+  local co = table_remove(self, 1)
+  if co then -- directly consume the new unit
+    local ok, err = coroutine_resume(co)
+    if not ok then error(debug.traceback(co, err), 0) end
+  else -- store
+    self.units = self.units+1
+  end
+end
+
+-- Demand a unit.
+-- Yield the current coroutine if no unit is available.
+function semaphore:demand()
+  if self.units > 0 then -- consume unit
+    self.units = self.units-1
+  else -- wait for unit
+    local co, main = coroutine_running()
+    assert(co and not main, "demand from a non-coroutine thread")
+    table_insert(self, co)
+    coroutine_yield()
+  end
+end
+
+local meta_semaphore = {__index = semaphore}
+
 -- Luaseq
 
 -- Asynchronous operation.
@@ -180,6 +214,14 @@ function Luaseq.mutex(mode)
     else error("invalid mutex mode") end
   end
   return o
+end
+
+-- Create a semaphore.
+-- units: initial amount of units
+-- return semaphore
+function Luaseq.semaphore(units)
+  assert(units >= 0, "units must be >= 0")
+  return setmetatable({units = units}, meta_semaphore)
 end
 
 return Luaseq
